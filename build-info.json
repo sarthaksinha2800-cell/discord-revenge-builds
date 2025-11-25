@@ -1,9 +1,9 @@
 {
   "version": "v1.10.5",
-  "build_date": "2025-11-25T09:23:34Z",
-  "build_id": "19664526641-1",
-  "bundle_size": 523709,
+  "build_date": "2025-11-25T09:25:30Z",
+  "build_id": "19664580712-1",
+  "bundle_size": 523713,
   "source": "https://github.com/revenge-mod/revenge-bundle",
-  "build_log": "https://github.com/sarthaksinha2800-cell/discord-revenge-builds/actions/runs/19664526641",
+  "build_log": "https://github.com/sarthaksinha2800-cell/discord-revenge-builds/actions/runs/19664580712",
   "direct_url": "https://raw.githubusercontent.com/sarthaksinha2800-cell/discord-revenge-builds/main/revenge.js"
 }
