@@ -111,12 +111,12 @@ jobs:
           exit 1
         fi
         
-        echo "📦 Bundle ready for release"
+        echo "📦 Bundle ready"
         
-    - name: 🗂️ Prepare release files
+    - name: 🗂️ Prepare and commit bundle
       if: steps.check-updates.outputs.should_build == 'true'
       run: |
-        echo "Preparing release files..."
+        echo "Preparing and committing bundle..."
         
         # Copy bundle to root directory
         cp revenge-source/dist/revenge.js revenge.js
@@ -134,56 +134,27 @@ jobs:
         }
         EOF
         
-        echo "📋 Release files prepared"
-        ls -la revenge.js build-info.json
+        # Update version tracking
+        echo "${{ steps.check-updates.outputs.latest_version }}" > last_successful_version.txt
         
-    - name: 📤 Commit and push bundle
-      if: steps.check-updates.outputs.should_build == 'true'
-      run: |
-        echo "Committing and pushing bundle to repository..."
-        
-        # Configure git
+        # Configure git and commit
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Add and commit the built files
-        git add revenge.js build-info.json
-        git commit -m "📦 Build Revenge ${{ steps.check-updates.outputs.latest_version }} [skip ci]" || exit 0
+        git add revenge.js build-info.json last_successful_version.txt
+        git commit -m "📦 Build Revenge ${{ steps.check-updates.outputs.latest_version }} [skip ci]"
         
         # Push changes
         git push origin main
         
-        echo "✅ Bundle committed to repository"
-        
-    - name: 🏷️ Create simple release
-      if: steps.check-updates.outputs.should_build == 'true'
-      run: |
-        echo "Creating GitHub release..."
-        
-        # Create release using GitHub CLI
-        gh release create \
-          "v${{ steps.check-updates.outputs.latest_version }}" \
-          revenge.js \
-          build-info.json \
-          --title "Revenge Bundle ${{ steps.check-updates.outputs.latest_version }}" \
-          --notes "Automated build of Revenge bundle ${{ steps.check-updates.outputs.latest_version }}
-          
-          **Direct URL:** https://raw.githubusercontent.com/${{ github.repository }}/main/revenge.js
-          
-          Built: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          Size: ${{ steps.build-bundle.outputs.bundle_size }} bytes
-          
-          Use this URL in Discord: https://raw.githubusercontent.com/${{ github.repository }}/main/revenge.js"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: 💾 Update version tracking
-      if: steps.check-updates.outputs.should_build == 'true' && success()
-      run: |
-        echo "${{ steps.check-updates.outputs.latest_version }}" > last_successful_version.txt
-        git add last_successful_version.txt
-        git commit -m "📌 Update to Revenge ${{ steps.check-updates.outputs.latest_version }} [skip ci]" || exit 0
-        git push
+        echo "🎉 Bundle successfully deployed!"
+        echo ""
+        echo "📋 Build Information:"
+        echo "   Version: ${{ steps.check-updates.outputs.latest_version }}"
+        echo "   Size: ${{ steps.build-bundle.outputs.bundle_size }} bytes"
+        echo "   Build ID: ${{ github.run_id }}-${{ github.run_attempt }}"
+        echo ""
+        echo "🔗 Direct URL for Discord:"
+        echo "   https://raw.githubusercontent.com/${{ github.repository }}/main/revenge.js"
         
     - name: 📤 Upload build artifacts
       if: steps.check-updates.outputs.should_build == 'true'
