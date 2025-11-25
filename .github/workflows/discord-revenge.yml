@@ -111,18 +111,21 @@ jobs:
           exit 1
         fi
         
-        echo "📦 Bundle ready"
+        echo "📦 Bundle ready for release"
         
-    - name: 🗂️ Prepare and commit bundle
+    - name: 🗂️ Prepare release files
       if: steps.check-updates.outputs.should_build == 'true'
       run: |
-        echo "Preparing and committing bundle..."
+        echo "Preparing release files..."
         
-        # Copy bundle to root directory
-        cp revenge-source/dist/revenge.js revenge.js
+        # Create release directory
+        mkdir -p release
+        
+        # Copy bundle to release directory
+        cp revenge-source/dist/revenge.js release/revenge.js
         
         # Create build info
-        cat > build-info.json << EOF
+        cat > release/build-info.json << EOF
         {
           "version": "${{ steps.check-updates.outputs.latest_version }}",
           "build_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
@@ -130,44 +133,107 @@ jobs:
           "bundle_size": ${{ steps.build-bundle.outputs.bundle_size }},
           "source": "https://github.com/$REVENGE_REPO",
           "build_log": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-          "direct_url": "https://raw.githubusercontent.com/${{ github.repository }}/main/revenge.js"
+          "direct_url": "https://github.com/${{ github.repository }}/releases/latest/download/revenge.js"
         }
         EOF
         
-        # Update version tracking
-        echo "${{ steps.check-updates.outputs.latest_version }}" > last_successful_version.txt
+        # Create README for the release
+        cat > release/README.md << 'EOF'
+        # Discord Revenge Bundle
         
-        # Configure git and commit
+        ## 📦 What is this?
+        
+        This is a built JavaScript bundle for Discord Revenge - a modification that enhances Discord with additional features and customization options.
+        
+        ## 🚀 How to Use
+        
+        1. **Install** a Revenge-compatible Discord client (like Aliucord with Revenge plugin)
+        2. **Enable** Developer Settings in Discord
+        3. **Set Custom URL** to: `https://github.com/${{ github.repository }}/releases/latest/download/revenge.js`
+        4. **Restart** Discord
+        
+        ## 🔧 Technical Details
+        
+        - **Type**: JavaScript Runtime Bundle
+        - **Usage**: Loaded by Discord client at runtime
+        - **Format**: Single JavaScript file
+        - **Size**: ${{ steps.build-bundle.outputs.bundle_size }} bytes
+        
+        ## 📝 Notes
+        
+        - This is **not a modified APK** - it's a JavaScript bundle
+        - Requires a Revenge-compatible Discord client
+        - Automatically built from [revenge-mod/revenge-bundle](https://github.com/revenge-mod/revenge-bundle)
+        
+        > ⚠️ Use at your own risk. Not affiliated with Discord Inc.
+        EOF
+        
+        echo "📋 Release files prepared"
+        
+    - name: 🏷️ Create GitHub Release
+      if: steps.check-updates.outputs.should_build == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: "v${{ steps.check-updates.outputs.latest_version }}"
+        name: "Revenge Bundle ${{ steps.check-updates.outputs.latest_version }}"
+        body: |
+          # 🚀 Discord Revenge Bundle
+          
+          **Automated build of Revenge JavaScript bundle**
+          
+          ## 📦 Download Files
+          
+          - [`revenge.js`](revenge.js) - Main JavaScript bundle
+          - [`build-info.json`](build-info.json) - Build metadata
+          - [`README.md`](README.md) - Usage instructions
+          
+          ## 🔧 Build Information
+          
+          - **Version**: ${{ steps.check-updates.outputs.latest_version }}
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Bundle Size**: ${{ steps.build-bundle.outputs.bundle_size }} bytes
+          - **Build ID**: ${{ github.run_number }}
+          
+          ## 🚀 How to Use
+          
+          1. Install a Revenge-compatible Discord client
+          2. Enable Developer Settings in Discord
+          3. Set Custom URL to: `https://github.com/${{ github.repository }}/releases/latest/download/revenge.js`
+          4. Restart Discord
+          
+          ## 🔗 Links
+          
+          - [Revenge Source](https://github.com/$REVENGE_REPO)
+          - [Build Log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          > ⚠️ This is a JavaScript bundle, not a modified APK. Requires Revenge-compatible client.
+        files: release/*
+        draft: false
+        prerelease: false
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 💾 Update version tracking
+      if: steps.check-updates.outputs.should_build == 'true' && success()
+      run: |
+        echo "${{ steps.check-updates.outputs.latest_version }}" > last_successful_version.txt
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add revenge.js build-info.json last_successful_version.txt
-        git commit -m "📦 Build Revenge ${{ steps.check-updates.outputs.latest_version }} [skip ci]"
-        
-        # Push changes
-        git push origin main
-        
-        echo "🎉 Bundle successfully deployed!"
-        echo ""
-        echo "📋 Build Information:"
-        echo "   Version: ${{ steps.check-updates.outputs.latest_version }}"
-        echo "   Size: ${{ steps.build-bundle.outputs.bundle_size }} bytes"
-        echo "   Build ID: ${{ github.run_id }}-${{ github.run_attempt }}"
-        echo ""
-        echo "🔗 Direct URL for Discord:"
-        echo "   https://raw.githubusercontent.com/${{ github.repository }}/main/revenge.js"
+        git add last_successful_version.txt
+        git commit -m "📌 Update to Revenge ${{ steps.check-updates.outputs.latest_version }} [skip ci]" || exit 0
+        git push
         
     - name: 📤 Upload build artifacts
       if: steps.check-updates.outputs.should_build == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: revenge-bundle-${{ steps.check-updates.outputs.latest_version }}
-        path: |
-          revenge.js
-          build-info.json
+        path: release/*
         retention-days: 30
         
     - name: 🧹 Cleanup
       if: always()
       run: |
-        rm -rf revenge-source/
+        rm -rf revenge-source/ release/
         echo "Cleanup complete"
